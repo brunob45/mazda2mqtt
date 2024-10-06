@@ -1,0 +1,7 @@
+services:
+  mazda2mqtt:
+    container_name: mazda2mqtt
+    image: mazda2mqtt:latest
+    build: .
+    env_file: .env
+    restart: unless-stopped
