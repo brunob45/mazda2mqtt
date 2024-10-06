@@ -21,12 +21,14 @@ from pymazda.exceptions import (
 load_dotenv()
 
 # https://www.emqx.com/en/blog/how-to-use-mqtt-in-python
-broker = os.getenv("MQTT_BROKER")
-port = 1883
+broker = os.getenv("MQTT_BROKER", "localhost")
+try:
+    port = int(os.getenv("MQTT_PORT"))
+except:
+    port = 1883
+
 # Generate a Client ID with the publish prefix.
 client_id = f"publish-mazda"
-# username = 'emqx'
-# password = 'public'
 
 
 def connect_mqtt():
@@ -62,7 +64,7 @@ async def main():
     # https://github.com/alanzchen/mymazda-relay/blob/main/app.py#L14
     username = os.getenv("MAZDA_USERNAME")
     password = os.getenv("MAZDA_PASSWORD")
-    region = "MNAO"
+    region = os.getenv("MAZDA_REGION", "MNAO")
     vehicle_id = None  # os.getenv("MAZDA_ID")
 
     mazda = MazdaAPI(username, password, region)
@@ -133,7 +135,7 @@ async def main():
             "units": "psi",
             "tpl": "tirePressure.rearRightTirePressurePsi",
             "sclass": "measurement",
-        }
+        },
     ]
     binary_sensors = [
         # doors
@@ -261,7 +263,7 @@ async def main():
         "avty_t": "~/status",
         "pl_avail": "online",
         "pl_not_avail": "offline",
-        "dev": dev_desc
+        "dev": dev_desc,
     }
 
     client.publish(
