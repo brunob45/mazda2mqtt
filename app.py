@@ -31,14 +31,14 @@ except:
 client_id = f"publish-mazda"
 
 
-def connect_mqtt(subscr: list[str]):
+def connect_mqtt(topics_sub: list[str]):
     def on_connect(client, userdata, flags, rc, properties):
         if rc == 0:
             print("Connected to MQTT Broker!")
             # https://pypi.org/project/paho-mqtt/#callbacks
             # we should always subscribe from on_connect callback to be sure
             # our subscribed is persisted across reconnections.
-            for s in subscr:
+            for s in topics_sub:
                 client.subscribe(s)
         else:
             print("Failed to connect, return code %d\n", rc)
@@ -92,12 +92,12 @@ async def main():
         vehicle_id = vehicles[0]["id"]
 
     # list topics (buttons) to subscribe to
-    subscr = [
+    topics_sub = [
         f"mazda/{vehicle_id}/engineStart",
         f"mazda/{vehicle_id}/engineStop",
     ]
 
-    client = connect_mqtt(subscr)
+    client = connect_mqtt(topics_sub)
     client.loop_start()
 
     dev_id = f"mazda-{vehicle_id}"
