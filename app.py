@@ -213,6 +213,15 @@ async def main():
         },
     ]
 
+    buttons = [
+        {
+            "name":"startEngine",
+        },
+        {
+            "name":"stopEngine",
+        },
+    ]
+
     for s in sensors:
         discovery = {
             "name": s["name"],
@@ -255,6 +264,25 @@ async def main():
 
         client.publish(
             f"homeassistant/binary_sensor/{dev_id}/{s['name']}/config",
+            json.dumps(discovery),
+            retain=True,
+        )
+
+    for s in buttons:
+        discovery = {
+            "name": s["name"],
+            "uniq_id": f"{dev_id}-{s['name']}",
+            "~": f"mazda/{vehicle_id}",
+            "cmd_t": f"~/{s['name']}",
+            "json_attr_t": f"~/{s['name']}/attributes",
+            "avty_t": "~/status",
+            "pl_avail": "online",
+            "pl_not_avail": "offline",
+            "dev": dev_desc,
+        }
+
+        client.publish(
+            f"homeassistant/button/{dev_id}/{s['name']}/config",
             json.dumps(discovery),
             retain=True,
         )
