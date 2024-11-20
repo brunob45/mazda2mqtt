@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from dotenv import load_dotenv
 import os
 
@@ -71,7 +73,17 @@ async def publish(client, mazda, vehicle_id):
     topic = f"mazda/{vehicle_id}"
     while True:
         status = await mazda.get_vehicle_status(vehicle_id)
+        try:
+            status['ev'] = await mazda.get_ev_vehicle_status(vehicle_id)
+        except:
+            print('No EV')
+        try:
+            status['hvac'] = await mazda.get_hvac_setting(vehicle_id)
+        except:
+            print('No HVAC')
+
         print(status)
+
         client.publish(f"{topic}/monitor", json.dumps(status), retain=True)
         client.publish(f"{topic}/status", "online", retain=True)
 
