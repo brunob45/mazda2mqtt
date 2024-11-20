@@ -71,17 +71,25 @@ def connect_mqtt(topics_sub: list[str]):
 
 async def publish(client, mazda, vehicle_id):
     topic = f"mazda/{vehicle_id}"
+    isEV = True
+    hasHVAC = True
     while True:
         status = await mazda.get_vehicle_status(vehicle_id)
-        try:
-            status['ev'] = await mazda.get_ev_vehicle_status(vehicle_id)
-        except:
-            print('No EV')
-        try:
-            status['hvac'] = await mazda.get_hvac_setting(vehicle_id)
-        except:
-            print('No HVAC')
 
+        if hasHVAC:
+            try:
+                status['hvac'] = await mazda.get_hvac_setting(vehicle_id)
+            except:
+                print('No HVAC')
+                hasHVAC = False # prevent future calls to this API
+
+        if isEV:
+            try:
+                status['ev'] = await mazda.get_ev_vehicle_status(vehicle_id)
+            except:
+                print('No EV')
+                isEV = False # prevent future calls to this API
+        
         print(status)
 
         client.publish(f"{topic}/monitor", json.dumps(status), retain=True)
@@ -105,6 +113,10 @@ async def main():
 
     # list topics (buttons) to subscribe to
     topics_sub = [
+        f"mazda/{vehicle_id}/doorUnlock",
+        f"mazda/{vehicle_id}/doorLock",
+        f"mazda/{vehicle_id}/lightOn",
+        f"mazda/{vehicle_id}/lightOff",
         f"mazda/{vehicle_id}/engineStart",
         f"mazda/{vehicle_id}/engineStop",
     ]
@@ -172,6 +184,15 @@ async def main():
             "tpl": "tirePressure.rearRightTirePressurePsi",
             "sclass": "measurement",
         },
+        # HVAC
+        {
+            "name": "hvacTemperature",
+            "dev_cla": "temperature",
+            # "units": "°C",
+            "tpl": "hvac.temperature",
+            "sclass": "measurement",
+        },
+
     ]
     binary_sensors = [
         # doors
@@ -242,15 +263,38 @@ async def main():
             "dev_cla": "light",
             "tpl": "hazardLightsOn",
         },
+        # hvac
+        {
+            "name": "frontDefroster",
+            # "dev_cla": "window",
+            "tpl": "hvac.frontDefroster",
+        },
+        {
+            "name": "fearDefroster",
+            # "dev_cla": "window",
+            "tpl": "hvac.rearDefroster",
+        },
     ]
 
     buttons = [
-        {
-            "name": "engineStart",
-        },
-        {
-            "name": "engineStop",
-        },
+        # door
+        {"name": "doorUnlock",},
+        {"name": "doorLock",},
+        # light
+        {"name": "lightOn",},
+        {"name": "lightOff",},
+        # engine
+        {"name": "engineStart",},
+        {"name": "engineStop",},
+    ]
+
+    ev_buttons = [
+        # charge
+        {"name": "chargeStart",},
+        {"name": "chargeStop",},
+        # hvac
+        {"name": "hvacOn",},
+        {"name": "hvacOff",},
     ]
 
     for s in sensors:
