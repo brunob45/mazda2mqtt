@@ -188,7 +188,7 @@ async def main():
         {
             "name": "hvacTemperature",
             "dev_cla": "temperature",
-            # "units": "°C",
+            "units": "°C",
             "tpl": "hvac.temperature",
             "sclass": "measurement",
         },
