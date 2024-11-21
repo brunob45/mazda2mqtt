@@ -69,26 +69,18 @@ def connect_mqtt(topics_sub: list[str]):
     return client
 
 
-async def publish(client, mazda, vehicle_id):
+async def publish(client, mazda, vehicle_id, is_electric):
     topic = f"mazda/{vehicle_id}"
-    isEV = True
-    hasHVAC = True
     while True:
         status = await mazda.get_vehicle_status(vehicle_id)
 
-        if hasHVAC:
-            try:
-                status['hvac'] = await mazda.get_hvac_setting(vehicle_id)
-            except:
-                print('No HVAC')
-                hasHVAC = False # prevent future calls to this API
-
-        if isEV:
+        if is_electric:
             try:
                 status['ev'] = await mazda.get_ev_vehicle_status(vehicle_id)
+                # hvac always returns 22 degC when not an EV
+                status['hvac'] = await mazda.get_hvac_setting(vehicle_id)
             except:
                 print('No EV')
-                isEV = False # prevent future calls to this API
         
         print(status)
 
@@ -103,13 +95,13 @@ async def main():
     username = os.getenv("MAZDA_USERNAME")
     password = os.getenv("MAZDA_PASSWORD")
     region = os.getenv("MAZDA_REGION", "MNAO")
-    vehicle_id = None  # os.getenv("MAZDA_ID")
 
     mazda = MazdaAPI(username, password, region)
 
-    if vehicle_id is None:
-        vehicles = await mazda.get_vehicles()
-        vehicle_id = vehicles[0]["id"]
+    vehicles = await mazda.get_vehicles()
+    vehicle_info = vehicles[0] # take first result
+    vehicle_id = vehicle_info["id"]
+    is_electric = vehicle_info["isElectric"]
 
     # list topics (buttons) to subscribe to
     topics_sub = [
@@ -128,9 +120,9 @@ async def main():
     dev_desc = {
         "identifiers": [dev_id],
         "manufacturer": "MAZDA",
-        "model": vehicles[0]["modelName"],
-        "name": vehicles[0]["nickname"],
-        "serial_number": vehicles[0]["vin"],
+        "model": vehicle_info["modelName"],
+        "name": vehicle_info["nickname"],
+        "serial_number": vehicle_info["vin"],
     }
 
     sensors = [
@@ -184,15 +176,6 @@ async def main():
             "tpl": "tirePressure.rearRightTirePressurePsi",
             "sclass": "measurement",
         },
-        # HVAC
-        {
-            "name": "hvacTemperature",
-            "dev_cla": "temperature",
-            "units": "°C",
-            "tpl": "hvac.temperature",
-            "sclass": "measurement",
-        },
-
     ]
     binary_sensors = [
         # doors
@@ -263,19 +246,7 @@ async def main():
             "dev_cla": "light",
             "tpl": "hazardLightsOn",
         },
-        # hvac
-        {
-            "name": "frontDefroster",
-            # "dev_cla": "window",
-            "tpl": "hvac.frontDefroster",
-        },
-        {
-            "name": "fearDefroster",
-            # "dev_cla": "window",
-            "tpl": "hvac.rearDefroster",
-        },
     ]
-
     buttons = [
         # door
         {"name": "doorUnlock",},
@@ -288,14 +259,38 @@ async def main():
         {"name": "engineStop",},
     ]
 
-    ev_buttons = [
-        # charge
-        {"name": "chargeStart",},
-        {"name": "chargeStop",},
-        # hvac
-        {"name": "hvacOn",},
-        {"name": "hvacOff",},
-    ]
+    if is_electric:
+        sensors += [
+            # hvac
+            {
+                "name": "hvacTemperature",
+                "dev_cla": "temperature",
+                "units": "°C",
+                "tpl": "hvac.temperature",
+                "sclass": "measurement",
+            },
+        ]
+        binary_sensors += [
+            # hvac
+            {
+                "name": "frontDefroster",
+                # "dev_cla": "window",
+                "tpl": "hvac.frontDefroster",
+            },
+            {
+                "name": "fearDefroster",
+                # "dev_cla": "window",
+                "tpl": "hvac.rearDefroster",
+            },
+        ]
+        buttons += [
+            # charge
+            {"name": "chargeStart",},
+            {"name": "chargeStop",},
+            # hvac
+            {"name": "hvacOn",},
+            {"name": "hvacOff",},
+        ]
 
     for s in sensors:
         discovery = {
@@ -380,7 +375,7 @@ async def main():
         retain=True,
     )
 
-    await publish(client, mazda, vehicle_id)
+    await publish(client, mazda, vehicle_id, is_electric)
     client.loop_stop()
 
     # Close the session
